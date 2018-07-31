@@ -66,3 +66,8 @@ rfecv.fit(x_new, y_res)
 
 #pre selecting the features based on the columns variance
 
+#build logistic model
+
+
+#build scorecard model
+
