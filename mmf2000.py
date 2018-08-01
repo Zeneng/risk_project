@@ -48,7 +48,7 @@ trained_target=pd.DataFrame(y_res,columns=[target])
 from WOEIV import WOE
 woe = WOE()
 IV= np.zeros(x_res.shape[1])
-for i in range(0,(x_res.shape[1]-1)):
+for i in range(0,x_res.shape[1]):
     IV[i]=woe.woe_single_x(x_res[i],y_res,1)[1]
     
 x_res_IV=x_res[:,IV>0.8]
@@ -79,11 +79,7 @@ trained_features=trained_features.iloc[:, column_indices]
 
 df = pd.concat([trained_features, trained_target], axis=1, join_axes=[trained_features.index])
 
-#Seperate the trained file into in sample and out of sample
 
-outdf = df.sample(frac=0.1, replace=False)
-
-indf = df.drop(outdf.index)
 
 
 #build stepwise logistic model
@@ -128,12 +124,26 @@ def forward_selected(data, response):
     model = smf.glm(formula, data,family=sm.families.Binomial()).fit()
     return model
 
+#random cross validation to find the best fitted model
 
+L=np.zeros(9)
+for i in range(0, 9):
+     #Seperate the trained file into in sample and out of sample
 
-model = forward_selected(indf, 'Target')
+     outdf = df.sample(frac=0.1, replace=False)
 
-print(model.model.formula)
+     indf = df.drop(outdf.index)
+     
+     model = forward_selected(indf, 'Target')
 
+     L[i]=sum(abs(outdf.iloc[:,-1].values-model.model.predict(model.params,outdf)))
+     
+     print(i)
+     
+     print(model.model.formula)
+     
+     print(model.params)
+     
 
 #build scorecard model
 
