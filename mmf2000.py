@@ -38,35 +38,101 @@ trained_features = pd.get_dummies(trained_features)
 sm = SMOTE(random_state=12, ratio = 1.0)
 x_res, y_res = sm.fit_sample(trained_features, trained_target)
 
+features=trained_features.columns.tolist()
+trained_features=pd.DataFrame(x_res,columns=features)
+target=trained_target.name
+trained_target=pd.DataFrame(y_res,columns=[target])
 
-#identify the useful features based on classfication tree method
-clf = ExtraTreesClassifier()
-clf = clf.fit(x_res, y_res)
-clf.feature_importances_  
 
-model = SelectFromModel(clf, prefit=True)
-x_new = model.transform(x_res)
-x_new.shape 
-
-index=model.get_support()
-
-#further identify the useful features based on cross validation method
-from sklearn.svm import SVC
-from sklearn.model_selection import StratifiedKFold
-from sklearn.feature_selection import RFECV
-
-svc = SVC(kernel="linear")
-# The "accuracy" scoring is proportional to the number of correct
-# classifications
-rfecv = RFECV(estimator=svc, step=1, cv=StratifiedKFold(2),
-              scoring='accuracy')
-rfecv.fit(x_new, y_res)
+# Calculate information value
+from WOEIV import WOE
+woe = WOE()
+IV= np.zeros(x_res.shape[1])
+for i in range(0,(x_res.shape[1]-1)):
+    IV[i]=woe.woe_single_x(x_res[i],y_res,1)[1]
+    
+x_res_IV=x_res[:,IV>0.8]
+trained_features=trained_features.loc[:, IV>0.80]
 
 
 
-#pre selecting the features based on the columns variance
 
-#build logistic model
+##identify the useful features based on classfication tree method
+#clf = ExtraTreesClassifier()
+#clf = clf.fit(x_res, y_res)
+#clf.feature_importances_  
+#
+#model = SelectFromModel(clf, prefit=True)
+#x_new = model.transform(x_res)
+#x_new.shape 
+#
+#index=model.get_support()
+
+#Clustering
+from Cluster import PFA
+pfa = PFA(n_features=20)
+pfa.fit(x_res_IV)
+column_indices = pfa.indices_
+
+
+trained_features=trained_features.iloc[:, column_indices]
+
+df = pd.concat([trained_features, trained_target], axis=1, join_axes=[trained_features.index])
+
+#Seperate the trained file into in sample and out of sample
+
+outdf = df.sample(frac=0.1, replace=False)
+
+indf = df.drop(outdf.index)
+
+
+#build stepwise logistic model
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
+
+def forward_selected(data, response):
+    """logistic Linear model designed by forward selection.
+
+    Parameters:
+    -----------
+    data : pandas DataFrame with all possible predictors and response
+
+    response: string, name of response column in data
+
+    Returns:
+    --------
+    model: an "optimal" fitted statsmodels linear model
+           with an intercept
+           selected by forward selection
+           evaluated by adjusted R-squared
+    """
+    remaining = set(data.columns)
+    remaining.remove(response)
+    selected = []
+    current_score, best_new_score = -14997,-14997
+    while remaining and current_score == best_new_score:
+        scores_with_candidates = []
+        for candidate in remaining:
+            formula = "{} ~ {} + 1".format(response,
+                                           ' + '.join(selected + [candidate]))
+            score = -smf.glm(formula, data,family=sm.families.Binomial()).fit().deviance
+            scores_with_candidates.append((score, candidate))
+        scores_with_candidates.sort()
+        best_new_score, best_candidate = scores_with_candidates.pop()
+        if current_score < best_new_score:
+            remaining.remove(best_candidate)
+            selected.append(best_candidate)
+            current_score = best_new_score
+    formula = "{} ~ {} + 1".format(response,
+                                   ' + '.join(selected))
+    model = smf.glm(formula, data,family=sm.families.Binomial()).fit()
+    return model
+
+
+
+model = forward_selected(indf, 'Target')
+
+print(model.model.formula)
 
 
 #build scorecard model
