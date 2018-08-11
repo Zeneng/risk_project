@@ -1,5 +1,4 @@
-# risk_project
-retail credit model
+# risk_project retail credit model
 This model is using logistic regression to model retail default probability.
 
 The main file is mmf2000.py. WOEIV.py is used to obtain the information value and Cluster.py is used to group highly correlated variables.
