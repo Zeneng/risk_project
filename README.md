@@ -15,4 +15,4 @@ The main file is mmf2000.py. WOEIV.py is used to obtain the information value an
 
 6, Using stepwise and cross validation technique to train the model.
 
-7, Finally, test the model on the out of sample set.
+7, Finally, test the model on the out of time data set.
