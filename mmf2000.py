@@ -12,20 +12,20 @@ from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import SelectFromModel
 
 
-#prescreening by cleaning them in the excel file
+#1 prescreening by cleaning them in the excel file
 #delete column with too many blanks
 df_train = pd.read_excel('/Users/IanFan/Desktop/MMF2000/reduced_data.xlsx',index_col = 0)
 
 #fill up missing values with the columns means
 df_filled=df_train.fillna(df_train.mean())
 
-#identify the target variables any default in 12 months
+#2 identify the target variables any default in 12 months
 df_filled["Target"]=df_filled.loc[:,"t1":"t12"].sum(axis=1)
 df_filled["Target"]=pd.Series(np.where(df_filled.Target.values > 0, 1, 0),
           df_filled.index)
 
 
-#oversampling to incease the percentage of defaults
+#3 oversampling to incease the percentage of defaults
 sum(df_filled.Target)/len(df_filled.Target)
 
 trained_features=df_filled.drop(['TIME_KEY','t1','t2','t3' ,'t4' ,'t5', 't6', 't7' ,'t8' ,'t9' ,'t10' ,'t11' ,'t12','Target'], axis=1)
@@ -44,7 +44,7 @@ target=trained_target.name
 trained_target=pd.DataFrame(y_res,columns=[target])
 
 
-# Calculate information value
+#4 Calculate information value
 from WOEIV import WOE
 woe = WOE()
 IV= np.zeros(x_res.shape[1])
@@ -68,7 +68,7 @@ trained_features=trained_features.loc[:, IV>0.80]
 #
 #index=model.get_support()
 
-#Clustering
+#5 Clustering
 from Cluster import PFA
 pfa = PFA(n_features=20)
 pfa.fit(x_res_IV)
@@ -82,7 +82,7 @@ df = pd.concat([trained_features, trained_target], axis=1, join_axes=[trained_fe
 
 
 
-#build stepwise logistic model
+#6 build stepwise logistic model
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
 
@@ -105,6 +105,7 @@ def forward_selected(data, response):
     remaining = set(data.columns)
     remaining.remove(response)
     selected = []
+    #null model score
     current_score, best_new_score = -14997,-14997
     while remaining and current_score == best_new_score:
         scores_with_candidates = []
@@ -125,9 +126,9 @@ def forward_selected(data, response):
     return model
 
 #random cross validation to find the best fitted model
-
-L=np.zeros(9)
-for i in range(0, 9):
+#test it for 9 times
+L=np.zeros(10)
+for i in range(0, 10):
      #Seperate the trained file into in sample and out of sample
 
      outdf = df.sample(frac=0.1, replace=False)
@@ -135,6 +136,9 @@ for i in range(0, 9):
      indf = df.drop(outdf.index)
      
      model = forward_selected(indf, 'Target')
+     
+     #L is the prediction error, smaller is better, the total out sample 
+     # length is 1202, thus the accuracy is 1-L/1202
 
      L[i]=sum(abs(outdf.iloc[:,-1].values-model.model.predict(model.params,outdf)))
      
@@ -145,5 +149,7 @@ for i in range(0, 9):
      print(model.params)
      
 
-#build scorecard model
+#7 test the model on the out of time dataset
+     
+     
 
