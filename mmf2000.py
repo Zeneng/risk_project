@@ -52,32 +52,35 @@ for i in range(0,x_res.shape[1]):
     IV[i]=woe.woe_single_x(x_res[i],y_res,1)[1]
     
 x_res_IV=x_res[:,IV>0.8]
-trained_features=trained_features.loc[:, IV>0.80]
+trained_feature1=trained_features.loc[:, IV>0.80]
 
 
 
 
 ##identify the useful features based on classfication tree method
-#clf = ExtraTreesClassifier()
-#clf = clf.fit(x_res, y_res)
-#clf.feature_importances_  
-#
-#model = SelectFromModel(clf, prefit=True)
-#x_new = model.transform(x_res)
-#x_new.shape 
-#
-#index=model.get_support()
+clf = ExtraTreesClassifier()
+clf = clf.fit(x_res, y_res)
+clf.feature_importances_  
+
+model = SelectFromModel(clf, prefit=True)
+x_new = model.transform(x_res)
+x_new.shape 
+
+index=model.get_support()
+
+trained_feature1=trained_features.iloc[:, index]
+
 
 #5 Clustering
 from Cluster import PFA
-pfa = PFA(n_features=20)
+pfa = PFA(n_features=9)
 pfa.fit(x_res_IV)
 column_indices = pfa.indices_
 
 
-trained_features=trained_features.iloc[:, column_indices]
+trained_feature1=trained_feature1.iloc[:, column_indices]
 
-df = pd.concat([trained_features, trained_target], axis=1, join_axes=[trained_features.index])
+df = pd.concat([trained_feature1, trained_target], axis=1, join_axes=[trained_feature1.index])
 
 
 
@@ -106,7 +109,7 @@ def forward_selected(data, response):
     remaining.remove(response)
     selected = []
     #null model score
-    current_score, best_new_score = -14997,-14997
+    current_score, best_new_score = -20000,-20000
     while remaining and current_score == best_new_score:
         scores_with_candidates = []
         for candidate in remaining:
